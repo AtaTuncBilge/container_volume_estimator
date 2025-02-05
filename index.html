@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konteyner Hacim Hesaplama</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <img src="assets/images/logo.png" alt="Mimware Logo">
+        <h1>Konteyner Hacim Hesaplama</h1>
+    </header>
+
+    <div class="container">
+        <!-- Konteyner Hacim Girişi -->
+        <label for="containerVolume">📦 Konteyner Hacmi (m³):</label>
+        <input type="number" id="containerVolume" placeholder="Örneğin: 20" required>
+
+        <!-- Fotoğraf Yükleme -->
+        <label for="containerImage">📷 Konteyner Fotoğrafı Yükleyin:</label>
+        <input type="file" id="containerImage" accept="image/*">
+
+        <!-- Hesaplama Butonu -->
+        <button onclick="calculateVolume()">Hesapla</button>
+
+        <!-- Sonuç Alanı -->
+        <div class="result" id="result"></div>
+    </div>
+
+    <footer>
+        <p>© 2025 Mimware | Tüm Hakları Saklıdır</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
