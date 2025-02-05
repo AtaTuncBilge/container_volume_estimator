@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import ResultCard from './ResultCard';
 
 function VolumeForm() {
   const [containerVolume, setContainerVolume] = useState('');
   const [containerImage, setContainerImage] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setResult(null);
+    setLoading(true);
 
     if (!containerVolume || !containerImage) {
       setError('⚠️ Lütfen tüm alanları doldurun!');
+      setLoading(false);
       return;
     }
 
@@ -26,6 +30,8 @@ function VolumeForm() {
       setResult(response.data);
     } catch (err) {
       setError('❌ Hata oluştu: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -54,10 +60,18 @@ function VolumeForm() {
         <button
           type="submit"
           className="w-full bg-yellow-400 text-black font-bold py-2 rounded-lg hover:bg-yellow-500 transition"
+          disabled={loading}
         >
-          Hesapla
+          {loading ? 'Hesaplanıyor...' : 'Hesapla'}
         </button>
       </form>
+
+      {loading && (
+        <div className="mt-4 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-4 border-yellow-400 border-solid mx-auto"></div>
+          <p className="text-yellow-400 mt-2">İşleniyor...</p>
+        </div>
+      )}
 
       {error && (
         <div className="mt-4 p-3 bg-red-500 text-white rounded-lg">
@@ -66,10 +80,7 @@ function VolumeForm() {
       )}
 
       {result && (
-        <div className="mt-4 p-4 bg-green-500 text-white rounded-lg shadow">
-          <p>📊 Doluluk Oranı: %{result.fill_percentage}</p>
-          <p>🧮 Dolu Hacim: {result.filled_volume} m³</p>
-        </div>
+        <ResultCard fillPercentage={result.fill_percentage} filledVolume={result.filled_volume} />
       )}
     </div>
   );
