@@ -1,6 +1,6 @@
 import React from 'react';
 
-function ResultCard({ fillPercentage, filledVolume }) {
+function ResultCard({ fillPercentage, filledVolume, container3DImage }) {
   if (fillPercentage === undefined || filledVolume === undefined) return null;
 
   return (
@@ -9,6 +9,19 @@ function ResultCard({ fillPercentage, filledVolume }) {
       <div className="space-y-2">
         <p>✅ <strong>Doluluk Oranı:</strong> %{fillPercentage}</p>
         <p>🧮 <strong>Dolu Hacim:</strong> {filledVolume} m³</p>
+      </div>
+
+      {/* 3D Görseli Göster */}
+      <div className="mt-4">
+        <p className="text-lg font-medium">3D Görsel:</p>
+        <div style={{ width: '300px', height: '300px', backgroundColor: 'gray' }}>
+          {/* Görsel Base64 olarak dönecek */}
+          {container3DImage ? (
+            <img src={container3DImage} alt="3D Görsel" className="w-full h-full object-cover rounded-lg" />
+          ) : (
+            <p>3D Görsel yüklenemedi.</p>
+          )}
+        </div>
       </div>
     </div>
   );
