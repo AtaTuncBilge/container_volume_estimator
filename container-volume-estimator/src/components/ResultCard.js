@@ -1,6 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 function ResultCard({ fillPercentage, filledVolume, container3DImage }) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    if (container3DImage) {
+      setIsLoading(false);
+      setImageError(false);
+    }
+  }, [container3DImage]);
+
   if (fillPercentage === undefined || filledVolume === undefined) return null;
 
   return (
@@ -15,15 +25,17 @@ function ResultCard({ fillPercentage, filledVolume, container3DImage }) {
       <div className="mt-4">
         <p className="text-lg font-medium">3D Görsel:</p>
         <div className="w-[300px] h-[300px] flex items-center justify-center bg-gray-700 rounded-lg overflow-hidden">
-          {container3DImage ? (
+          {isLoading ? (
+            <p className="text-sm text-gray-300 animate-pulse">⏳ Görsel Yükleniyor...</p>
+          ) : imageError ? (
+            <p className="text-sm text-red-400">❌ 3D Görsel yüklenemedi.</p>
+          ) : (
             <img 
               src={container3DImage} 
               alt="3D Görselleştirme" 
-              className="w-full h-full object-contain" 
-              onError={(e) => { e.target.src = ""; e.target.alt = "❌ 3D Görsel Yüklenemedi"; }}
+              className="w-full h-full object-cover"
+              onError={() => setImageError(true)}
             />
-          ) : (
-            <p className="text-sm text-gray-300">❌ 3D Görsel yüklenemedi.</p>
           )}
         </div>
       </div>
