@@ -38,7 +38,7 @@ function VolumeForm() {
       const response = await axios.post('http://127.0.0.1:8000/calculate', formData);
       setResult(response.data);
     } catch (err) {
-      setError(`❌ API Hatası: ${err.response ? err.response.data.message : err.message}`);
+      setError(`❌ API Hatası: ${err.response ? err.response.data.error : err.message}`);
     } finally {
       setLoading(false);
     }
@@ -85,10 +85,13 @@ function VolumeForm() {
       </form>
 
       {error && <div className="mt-4 text-red-500 font-semibold">{error}</div>}
+
       {result && (
         <ResultCard
           fillPercentage={result.fill_percentage}
           filledVolume={result.filled_volume}
+          volume3D={result["3d_volume"]}
+          image3D={result["3d_image"]}
         />
       )}
     </div>

@@ -14,12 +14,16 @@ function ResultCard({ fillPercentage, filledVolume, container3DImage }) {
       {/* 3D Görseli Göster */}
       <div className="mt-4">
         <p className="text-lg font-medium">3D Görsel:</p>
-        <div style={{ width: '300px', height: '300px', backgroundColor: 'gray' }}>
-          {/* Görsel Base64 olarak dönecek */}
+        <div className="w-[300px] h-[300px] flex items-center justify-center bg-gray-700 rounded-lg overflow-hidden">
           {container3DImage ? (
-            <img src={container3DImage} alt="3D Görsel" className="w-full h-full object-cover rounded-lg" />
+            <img 
+              src={container3DImage} 
+              alt="3D Görselleştirme" 
+              className="w-full h-full object-contain" 
+              onError={(e) => { e.target.src = ""; e.target.alt = "❌ 3D Görsel Yüklenemedi"; }}
+            />
           ) : (
-            <p>3D Görsel yüklenemedi.</p>
+            <p className="text-sm text-gray-300">❌ 3D Görsel yüklenemedi.</p>
           )}
         </div>
       </div>
