@@ -6,10 +6,9 @@ import cv2
 import os
 import uvicorn
 import base64
+import time
 from io import BytesIO
-from PIL import Image
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from PIL import Image, UnidentifiedImageError
 import logging
 
 from utils import generate_point_cloud, calculate_3d_volume, calculate_fill_percentage, generate_3d_visualization
@@ -36,132 +35,120 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.get("/")
 def read_root():
     return {"message": "🚀 Konteyner Hacim Hesaplama API'si Çalışıyor!"}
 
 
-def generate_matplotlib_3d(point_cloud):
+def convert_image_to_jpg(image: Image.Image) -> Image.Image:
     """
-    Eğer Open3D başarısız olursa, Matplotlib ile 3D nokta bulutu görselleştirmesi oluştur.
+    Her formatı optimize edilmiş JPG formatına çevirir.
     """
     try:
-        logging.info("Matplotlib ile 3D görselleştirme başlatılıyor...")
-        
-        fig = plt.figure(figsize=(6, 6))
-        ax = fig.add_subplot(111, projection='3d')
-
-        # Nokta bulutundaki X, Y, Z değerlerini al
-        xyz = np.asarray(point_cloud.points)
-        ax.scatter(xyz[:, 0], xyz[:, 1], xyz[:, 2], c='b', marker='o', s=1)
-
-        ax.set_xlabel('X Ekseni')
-        ax.set_ylabel('Y Ekseni')
-        ax.set_zlabel('Z Ekseni')
-
-        # Görseli kaydet
-        buf = BytesIO()
-        plt.savefig(buf, format="png", bbox_inches="tight")
-        plt.close(fig)
-        
-        logging.info("Matplotlib 3D görsel başarıyla oluşturuldu.")
-        return Image.open(buf)
-    
+        if image.mode in ("RGBA", "P"):
+            image = image.convert("RGB")
+        return image
     except Exception as e:
-        logging.error(f"Matplotlib ile 3D görselleştirme başarısız oldu: {e}")
+        logging.error(f"🚨 Görsel format dönüşüm hatası: {e}")
         return None
-
 
 def convert_image_to_base64(image):
     """
-    PIL.Image nesnesini Base64 string formatına çevirir.
+    Görseli Base64 formatına çevirerek API'de JSON olarak döndürmeyi sağlar.
     """
     try:
-        if isinstance(image, np.ndarray):
-            logging.warning("Gelen görsel numpy array formatında! PIL.Image formatına dönüştürülüyor...")
-            image = Image.fromarray(image)
+        # Eğer image str (Base64) tipinde ise önce görseli yüklememiz gerekiyor
+        if isinstance(image, str):
+            image = Image.open(BytesIO(base64.b64decode(image)))
 
-        elif not isinstance(image, Image.Image):
-            logging.error(f"Geçersiz görsel formatı: {type(image)}")
-            return None
-
+        # Görseli Base64 formatına çevir
         buffered = BytesIO()
-        image.save(buffered, format="PNG")
+        image.save(buffered, format="JPEG", quality=85, optimize=True)
         return base64.b64encode(buffered.getvalue()).decode("utf-8")
-    
     except Exception as e:
-        logging.error(f"Görsel Base64 formatına çevrilemedi: {e}")
+        logging.error(f"🚨 Görsel Base64 formatına çevrilemedi: {e}")
         return None
+
 
 
 @app.post("/calculate")
 async def calculate_volume(containerImage: UploadFile = File(...), containerVolume: float = Form(...)):
     """
     Kullanıcının yüklediği konteyner fotoğrafından hacim ve doluluk oranı hesaplar.
-    3D nokta bulutu oluşturur ve Base64 formatında bir görsel döndürür.
+    3D nokta bulutu oluşturur ve Base64 formatında optimize edilmiş JPG döndürür.
     """
     try:
-        logging.info(f"Yeni işlem başladı. Konteyner hacmi: {containerVolume} m³")
+        start_time = time.time()
+        logging.info(f"✅ Yeni işlem başladı. Konteyner hacmi: {containerVolume} m³")
 
-        # Görseli oku ve OpenCV ile işleme al
+        # 📸 Görseli oku (PNG, JPG, WEBP destekleniyor)
         image_data = await containerImage.read()
-        npimg = np.frombuffer(image_data, np.uint8)
-        image = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+        try:
+            image_pil = Image.open(BytesIO(image_data))
+        except UnidentifiedImageError:
+            raise HTTPException(status_code=400, detail="❌ Geçersiz dosya formatı!")
 
-        if image is None:
-            raise HTTPException(status_code=400, detail="❌ Yüklenen görüntü geçersiz!")
+        # 📌 Eğer desteklenmeyen bir formatsa hata döndür
+        if image_pil.format not in ["JPEG", "PNG", "WEBP"]:
+            raise HTTPException(status_code=400, detail="❌ Sadece JPG, PNG ve WEBP formatları desteklenmektedir!")
 
-        logging.info("Görsel başarıyla okundu ve işleniyor...")
+        logging.info(f"📸 Yüklenen görsel formatı: {image_pil.format}")
 
-        # 3D nokta bulutu oluştur
-        point_cloud = generate_point_cloud(image)
+        # 📌 Görseli optimize edilmiş JPG formatına dönüştür
+        optimized_image = convert_image_to_jpg(image_pil)
+        if optimized_image is None:
+            raise HTTPException(status_code=500, detail="❌ Görsel optimize edilemedi!")
+
+        # OpenCV ile işleme sokmak için numpy array'e çevir
+        image_np = np.array(optimized_image)
+        image_cv = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+
+        logging.info("📊 Görsel başarıyla işleme alındı.")
+
+        # 🚀 3D nokta bulutu oluştur
+        point_cloud = generate_point_cloud(image_cv)
         if len(point_cloud.points) == 0:
             raise HTTPException(status_code=500, detail="❌ 3D nokta bulutu boş, görselleştirme yapılamıyor!")
 
-        logging.info("3D nokta bulutu oluşturuldu.")
+        logging.info("📊 3D nokta bulutu oluşturuldu.")
 
-        # Hacim hesaplama
+        # 📏 Hacim hesaplama
         volume = calculate_3d_volume(point_cloud)
 
-        # Doluluk oranı hesaplama
-        fill_percentage = calculate_fill_percentage(image)
+        # 📊 Doluluk oranı hesaplama
+        fill_percentage = calculate_fill_percentage(image_cv)
         filled_volume = (fill_percentage / 100) * containerVolume
 
-        logging.info(f"Hesaplamalar tamamlandı. Doluluk oranı: %{fill_percentage}, Dolu Hacim: {filled_volume} m³")
+        logging.info(f"📏 Hesaplamalar tamamlandı. Doluluk oranı: %{fill_percentage}, Dolu Hacim: {filled_volume} m³")
 
-        # 3D görsel oluştur
+        # 🖼️ 3D görsel oluştur
         container_image_3d = generate_3d_visualization(point_cloud)
-
-        # Eğer Open3D başarısız olursa, Matplotlib kullan
-        if container_image_3d is None or isinstance(container_image_3d, str):
-            logging.warning("[WARNING] Open3D başarısız oldu, Matplotlib kullanılıyor...")
-            container_image_3d = generate_matplotlib_3d(point_cloud)
-
         if container_image_3d is None:
             raise HTTPException(status_code=500, detail="❌ 3D görselleştirme başarısız oldu!")
 
-        # Görseli Base64 formatına çevir
+        # 🖼️ 3D görseli optimize edilmiş JPG Base64 formatına çevir
         img_str = convert_image_to_base64(container_image_3d)
         if img_str is None:
             raise HTTPException(status_code=500, detail="❌ Görseli Base64 formatına çevirme başarısız oldu!")
 
-        logging.info("3D görselleştirme başarıyla tamamlandı!")
+        processing_time = round(time.time() - start_time, 2)
+        logging.info(f"✅ 3D görselleştirme tamamlandı! İşlem süresi: {processing_time} saniye")
 
         return JSONResponse(content={
             "fill_percentage": round(fill_percentage, 2),
             "filled_volume": round(filled_volume, 2),
             "3d_volume": round(volume, 2),
-            "3d_image": f"data:image/png;base64,{img_str}"
+            "3d_image": f"data:image/jpeg;base64,{img_str}",
+            "processing_time": processing_time
         })
 
-    except HTTPException as http_err:
-        logging.error(f"API Hatası: {http_err.detail}")
-        return JSONResponse(content={"error": http_err.detail}, status_code=http_err.status_code)
+    except HTTPException as e:
+        logging.error(f"🔥 API Hatası: {e.detail}")
+        return JSONResponse(content={"error": e.detail}, status_code=e.status_code)
 
     except Exception as e:
-        logging.error(f"Beklenmeyen bir hata oluştu: {e}")
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+        logging.error(f"🔥 Beklenmeyen bir hata oluştu: {e}")
+        return JSONResponse(content={"error": "❌ Sunucu iç hatası!"}, status_code=500)
 
 
 if __name__ == "__main__":
