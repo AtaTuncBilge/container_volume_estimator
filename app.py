@@ -134,7 +134,7 @@ async def calculate_volume(containerImage: UploadFile = File(...), containerVolu
         container_image_3d = generate_3d_visualization(point_cloud)
 
         # Eğer Open3D başarısız olursa, Matplotlib kullan
-        if container_image_3d is None:
+        if container_image_3d is None or isinstance(container_image_3d, str):
             logging.warning("[WARNING] Open3D başarısız oldu, Matplotlib kullanılıyor...")
             container_image_3d = generate_matplotlib_3d(point_cloud)
 
@@ -165,4 +165,4 @@ async def calculate_volume(containerImage: UploadFile = File(...), containerVolu
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=5000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
