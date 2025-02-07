@@ -7,8 +7,10 @@ function ResultCard({ fillPercentage, filledVolume, container3DImage }) {
 
   useEffect(() => {
     if (container3DImage) {
-      if (container3DImage.startsWith("data:image/jpeg;base64,") || 
-          container3DImage.startsWith("data:image/png;base64,")) {
+      if (
+        container3DImage.startsWith("data:image/jpeg;base64,") ||
+        container3DImage.startsWith("data:image/png;base64,")
+      ) {
         setValidImage(true);
         setIsLoading(false);
       } else {
